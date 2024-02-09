@@ -1,4 +1,5 @@
 use clap::{ArgAction, Parser};
+mod counter;
 
 #[derive(Parser)]
 #[clap(
@@ -38,5 +39,6 @@ struct Arguments {
 fn main() {
     let args = Arguments::parse();
 
-    println!("{}", args.path);
+    let counter_object = counter::Counter::new(&args.path).unwrap();
+    counter_object.discover_directories();
 }
