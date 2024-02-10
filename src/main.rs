@@ -1,4 +1,5 @@
 use clap::{ArgAction, Parser};
+use std::process;
 mod counter;
 
 #[derive(Parser)]
@@ -39,6 +40,9 @@ struct Arguments {
 fn main() {
     let args = Arguments::parse();
 
-    let counter_object = counter::Counter::new(&args.path).unwrap();
+    let counter_object = counter::Counter::build(&args.path).unwrap_or_else(|err| {
+        println!("Problem reading the file or directory: {err}");
+        process::exit(1);
+    });
     counter_object.discover_directories();
 }

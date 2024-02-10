@@ -8,18 +8,17 @@ pub struct Counter {
 }
 
 impl Counter {
-    pub fn new(path: &String) -> Result<Counter, Error> {
-        let absolute_path = match fs::canonicalize(path) {
-            Ok(path) => path,
-            Err(_err) => {
-                panic!("Cannot find the file/directory");
+    pub fn build(path: &String) -> Result<Counter, Error> {
+        let absolute_path = fs::canonicalize(path);
+        match absolute_path {
+            Ok(path) => {
+                return Ok(Counter {
+                    undiscorvered_directories: vec![path],
+                    files: Vec::new(),
+                });
             }
-        };
-
-        return Ok(Counter {
-            undiscorvered_directories: vec![absolute_path],
-            files: Vec::new(),
-        });
+            Err(error) => return Err(error),
+        }
     }
 
     pub fn discover_directories(&self) {
