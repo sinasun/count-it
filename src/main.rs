@@ -40,7 +40,7 @@ struct Arguments {
 fn main() {
     let args = Arguments::parse();
 
-    let counter_object = counter::Counter::build(&args.path).unwrap_or_else(|err| {
+    let mut counter_object = counter::Counter::build(&args.path).unwrap_or_else(|err| {
         println!("Problem reading the file or directory: {err}");
         process::exit(1);
     });
