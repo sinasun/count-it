@@ -99,38 +99,35 @@ impl File {
         match read_file {
             Ok(read_file) => {
                 let mut thread_handles = vec![];
-                if read_file.is_ascii() {
-                    let content = Arc::new(read_file);
-                    let content_length = content.len();
+                let content = Arc::new(read_file.as_bytes());
+                let content_length = content.len();
 
-                    for i in 0..THREAD_NUM {
-                        let content_share = Arc::clone(&content);
-                        let content_sub = content_share[i as usize * content_length
-                            / THREAD_NUM as usize
-                            ..(i as usize + 1) * content_length / THREAD_NUM as usize]
-                            .to_owned();
-                        thread_handles.push(thread::spawn(move || {
-                            let mut characters = 0;
-                            let mut words = 0;
-                            let mut lines = 0;
-                            for ch in content_sub.chars() {
-                                if ch.is_ascii() {
-                                    let ascii_ch = ch as u32;
-                                    // ASCII for space
-                                    if ascii_ch == 32 {
-                                        words += 1;
-                                    } else if ascii_ch == 10 {
-                                        // ASCII for new line
-                                        words += 1;
-                                        lines += 1;
-                                    } else if ascii_ch > 32 && ascii_ch < 127 {
-                                        characters += 1;
-                                    }
+                for i in 0..THREAD_NUM {
+                    let content_share = Arc::clone(&content);
+                    let content_sub = content_share[i as usize * content_length
+                        / THREAD_NUM as usize
+                        ..(i as usize + 1) * content_length / THREAD_NUM as usize]
+                        .to_owned();
+                    thread_handles.push(thread::spawn(move || {
+                        let mut characters = 0;
+                        let mut words = 0;
+                        let mut lines = 0;
+                        for ch in content_sub {
+                            if ch.is_ascii() {
+                                // ASCII for space
+                                if ch == 32 {
+                                    words += 1;
+                                } else if ch == 10 {
+                                    // ASCII for new line
+                                    words += 1;
+                                    lines += 1;
+                                } else if ch > 32 && ch < 127 {
+                                    characters += 1;
                                 }
                             }
-                            (characters, words, lines)
-                        }))
-                    }
+                        }
+                        (characters, words, lines)
+                    }))
                 }
 
                 for handle in thread_handles {
