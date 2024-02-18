@@ -4,9 +4,18 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
+const THREAD_NUM: i8 = 10;
+
+struct File {
+    path: PathBuf,
+    characters: i32,
+    words: i32,
+    lines: i32,
+}
+
 pub struct Counter {
     undiscorvered_directories: Arc<Mutex<Vec<PathBuf>>>,
-    files: Arc<Mutex<Vec<PathBuf>>>,
+    files: Arc<Mutex<Vec<File>>>,
     thread_handles: Vec<thread::JoinHandle<()>>,
 }
 
@@ -39,7 +48,12 @@ impl Counter {
                                     if file_type.is_dir() {
                                         shared_directories.lock().unwrap().push(path);
                                     } else if file_type.is_file() {
-                                        shared_files.lock().unwrap().push(dir.path());
+                                        shared_files.lock().unwrap().push(File {
+                                            path: dir.path(),
+                                            characters: 0,
+                                            words: 0,
+                                            lines: 0,
+                                        })
                                     }
                                 }
                             }
@@ -67,5 +81,79 @@ impl Counter {
             return None;
         }
         Some(directories.remove(0))
+    }
+
+    pub fn count_files(&mut self) {
+        self.discover_directories();
+        let files_list = Arc::clone(&self.files);
+        for mut file in &mut files_list.lock().unwrap().drain(..) {
+            file.count_file();
+            file.print();
+        }
+    }
+}
+
+impl File {
+    fn count_file(&mut self) {
+        let read_file = fs::read_to_string(self.path.clone());
+        match read_file {
+            Ok(read_file) => {
+                let mut thread_handles = vec![];
+                if read_file.is_ascii() {
+                    let content = Arc::new(read_file);
+                    let content_length = content.len();
+
+                    for i in 0..THREAD_NUM {
+                        let content_share = Arc::clone(&content);
+                        let content_sub = content_share[i as usize * content_length
+                            / THREAD_NUM as usize
+                            ..(i as usize + 1) * content_length / THREAD_NUM as usize]
+                            .to_owned();
+                        thread_handles.push(thread::spawn(move || {
+                            let mut characters = 0;
+                            let mut words = 0;
+                            let mut lines = 0;
+                            for ch in content_sub.chars() {
+                                if ch.is_ascii() {
+                                    let ascii_ch = ch as u32;
+                                    // ASCII for space
+                                    if ascii_ch == 32 {
+                                        words += 1;
+                                    } else if ascii_ch == 10 {
+                                        // ASCII for new line
+                                        words += 1;
+                                        lines += 1;
+                                    } else if ascii_ch > 32 && ascii_ch < 127 {
+                                        characters += 1;
+                                    }
+                                }
+                            }
+                            (characters, words, lines)
+                        }))
+                    }
+                }
+
+                for handle in thread_handles {
+                    let (sum_char, sum_words, sum_lines) = handle.join().unwrap();
+                    self.characters += sum_char;
+                    self.words += sum_words;
+                    self.lines += sum_lines;
+                }
+            }
+            Err(err) => eprintln!(
+                "Error reading file {}: {}",
+                self.path.to_string_lossy(),
+                err
+            ),
+        }
+    }
+    fn print(&self) {
+        println!(
+            "File: {}, chars: {}, words: {}, lines:{}",
+            self.path.to_string_lossy(),
+            self.characters,
+            self.words,
+            self.lines
+        );
     }
 }

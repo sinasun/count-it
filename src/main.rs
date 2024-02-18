@@ -44,5 +44,5 @@ fn main() {
         println!("Problem reading the file or directory: {err}");
         process::exit(1);
     });
-    counter_object.discover_directories();
+    counter_object.count_files();
 }
